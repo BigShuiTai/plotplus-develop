@@ -875,7 +875,7 @@ class Plot:
         self.ax.text(0, 1.01, s, transform=self.ax.transAxes,
             fontsize=self.fontsize['timestamp'], family=self.family)
 
-    def __timestamp(self, s, **kwargs):
+    def _timestamp_(self, s, **kwargs):
         self.ax.text(0, 1.01, s, transform=self.ax.transAxes, **kwargs)
 
     def _colorbar_unit(self, s):
