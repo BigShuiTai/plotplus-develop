@@ -511,6 +511,10 @@ class Plot:
         kwargs.update(transform=self.ax.transAxes)
         return self.ax.text(*args, **kwargs)
 
+    def _text(self, *args, **kwargs):
+        kwargs.update(transform=ccrs.PlateCarree())
+        return self.ax.text(*args, **kwargs)
+
     def contour(self, data, clabel=True, clabeldict=None, ip=1, color='k', lw=0.5,
             vline=None, vlinedict=None, **kwargs):
         clabeldict = clabeldict or {}
@@ -906,6 +910,9 @@ class Plot:
     def _maxminnote(self, s):
         self.mmnote = s
 
+    def _set_note(self, s, **kwargs):
+        self.ax.text(1, 1.01, s, ha='right', transform=self.ax.transAxes, **kwargs)
+
     def stdsave(self, directory, basetime, fcsthour, imcode):
         if isinstance(basetime, str):
             basetime = datetime.strptime(basetime, '%Y%m%d%H')
@@ -915,8 +922,9 @@ class Plot:
         self.save(path)
 
     def save(self, path, **kwargs):
-        self.ax.text(1, 1.01, self.mmnote, ha='right', transform=self.ax.transAxes,
-            fontsize=self.fontsize['mmnote'], family=self.family)
+        if not self.mmnote == "": 
+            self.ax.text(1, 1.01, self.mmnote, ha='right', transform=self.ax.transAxes,
+                fontsize=self.fontsize['mmnote'], family=self.family)
         self.ax.axis('off')
         if self.inside_axis:
             self.fig.subplots_adjust(bottom=0, top=1, left=0, right=1)
