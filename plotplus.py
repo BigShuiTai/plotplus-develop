@@ -186,10 +186,8 @@ class Plot:
             self.proj = type(_proj).__name__
         else:
             self.proj = _projshort.get(proj.upper(), proj)
-            self.proj = _projshort.get(proj.upper(), proj)
             central_longitude = (georange[2] + georange[3]) / 2
             kwargs.update(central_longitude=central_longitude)
-            _proj = getattr(ccrs, self.proj)(**kwargs)
             _proj = getattr(ccrs, self.proj)(**kwargs)
         self.trans = self.proj != 'PlateCarree'
         self.ax = plt.axes(projection=_proj)
