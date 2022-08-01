@@ -635,18 +635,9 @@ class Plot:
     def barbs(self, u, v, color='k', lw=0.5, length=3.5, num=12, **kwargs):
         kwargs.update(color=color, linewidth=lw, length=length,
             transform=ccrs.PlateCarree(), regrid_shape=num)
-        nh = self.yy >= 0
-        if np.any(nh):
-            ret = self.ax.barbs(self.xx[nh], self.yy[nh], u[nh], v[nh], **kwargs)
-        else:
-            ret = None
-        sh = ~nh
-        if np.any(sh):
-            retsh = self.ax.barbs(self.xx[sh], self.yy[sh], u[sh], v[sh],
-                flip_barb=True, **kwargs)
-        else:
-            retsh = None
-        return ret, retsh
+        sh = self.yy < 0
+        ret = self.ax.barbs(self.xx, self.yy, u, v, flip_barb=sh, **kwargs)
+        return ret
 
     def quiver(self, u, v, num=40, scale=500, qkey=False, qkeydict=None, **kwargs):
         qkeydict = qkeydict or {}
@@ -710,42 +701,6 @@ class Plot:
                             self.ax.text(j*self.res+self.lonmin, i*self.res+self.latmin, fmt.format(data[i][j]), **kwargs)
                     else:
                         self.ax.text(j*self.res+self.lonmin, i*self.res+self.latmin, fmt.format(data[i][j]), **kwargs)
-        '''
-        if self.proj == 'PlateCarree':
-            meri, para = len(self.y), len(self.x)
-            for i in range(1, meri-1, step):
-                for j in range(1, para-1, step):
-                    if not isinstance(data[i][j], np.ma.core.MaskedConstant):
-                        if not maskValue is None and isinstance(maskValue, int):
-                            if not int(fmt.format(data[i][j])) == maskValue:
-                                self.ax.text(j*self.res+self.lonmin, i*self.res+self.latmin, fmt.format(data[i][j]), **kwargs)
-                        else:
-                            self.ax.text(j*self.res+self.lonmin, i*self.res+self.latmin, fmt.format(data[i][j]), **kwargs)
-        else:
-            x1, x2, y1, y2 = self.ax.get_extent()
-            deltax, deltay = x2 - x1, y2 - y1
-            x1 += 0.02 * deltax
-            x2 -= 0.02 * deltax
-            y1 += 0.02 * deltay
-            y2 -= 0.02 * deltay
-            x = np.linspace(x1, x2, num)
-            y = np.linspace(y1, y2, num)
-            xx, yy = np.meshgrid(x, y)
-            points = ccrs.Geodetic().transform_points(self.ax.projection, xx, yy)
-            points_round = np.round(points/self.res) * self.res
-            values = data[np.searchsorted(self.x, points_round[:,:,0]),
-                np.searchsorted(self.y, points_round[:,:,1])]
-            result = np.dstack((points[:,:,:2], values))
-            for i in result:
-                for j in i:
-                    lon, lat, value = tuple(j)
-                    if not isinstance(value, np.ma.core.MaskedConstant):
-                        if not maskValue is None and isinstance(maskValue, int):
-                            if not int(fmt.format(value)) == maskValue:
-                                self.ax.text(lon, lat, fmt.format(value), **kwargs)
-                        else:
-                            self.ax.text(lon, lat, fmt.format(value), **kwargs)
-        '''
 
     def marktext(self, x, y, text='', mark='×', textpos='right', stroke=False,
             bbox=None, family='plotplus', markfontsize=None, **kwargs):
