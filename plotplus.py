@@ -444,8 +444,8 @@ class Plot:
         return ret
 
     def style(self, s):
-        if s not in ('jma', 'bom'):
-            print('Unknown style name. Only support jma or bom style.')
+        if s not in ('jma', 'bom', 'fnmoc'):
+            print('Unknown style name. Only support jma, bom, and fnmoc style.')
             return
         if s == 'jma':
             ocean_color = '#87A9D2'
@@ -459,6 +459,12 @@ class Plot:
             self.linecolor.update(coastline='#D0A85E', lakes='#D0A85E', rivers='#D0A85E', country='#D0A85E',
                 parameri='#D0A85E', province='#D0A85E', city='#D0A85E')
             self.style_colors = (ocean_color, land_color, '#D0A85E')
+        elif s == 'fnmoc':
+            ocean_color = '#CBCBCB'
+            land_color = '#A0522E'
+            self.linecolor.update(coastline='k', lakes='k', rivers='k', country='k',
+                parameri='k', province='k', city='k')
+            self.style_colors = (ocean_color, land_color, 'k')
         if self.mapset and self.mapset.ocean:
             self.ax.add_feature(self.mapset.ocean, color=ocean_color)
         else:
@@ -513,6 +519,9 @@ class Plot:
     def _text(self, *args, **kwargs):
         kwargs.update(transform=ccrs.PlateCarree())
         return self.ax.text(*args, **kwargs)
+
+    def annotate(self, *args, **kwargs):
+        return self.ax.annotate(*args, **kwargs)
 
     def contour(self, data, clabel=True, clabeldict=None, ip=1, color='k', lw=0.5,
             vline=None, vlinedict=None, **kwargs):
