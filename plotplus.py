@@ -82,6 +82,7 @@ class Plot:
             figsize = 7, 5
         self.fig = plt.figure(figsize=figsize)
         self.ax = None
+        self.facecolor = None
         self.mpstep = 10
         self.mapset = None
         self.aspect = aspect
@@ -105,6 +106,9 @@ class Plot:
 
     def setfontsize(self, name, size):
         self.fontsize[name] = size
+
+    def setfacecolor(self, color):
+        self.facecolor = color
 
     def setlinecolor(self, name, color):
         self.linecolor[name] = color
@@ -209,6 +213,13 @@ class Plot:
             self.ax.set_aspect(self.aspect)
         else:
             self.fig.set_size_inches(width, width * deltalat / deltalon)
+        if self.facecolor is None:
+            self.ax.patch.set_facecolor("#FFFFFF")
+        elif 'facecolor' in kwargs:
+            self.facecolor = kwargs.pop('facecolor')
+            self.ax.patch.set_facecolor(self.facecolor)
+        else:
+            self.ax.patch.set_facecolor(self.facecolor)
         if self.boundary is None:
             self.ax.outline_patch.set_linewidth(0)
         elif self.boundary == 'rect':
