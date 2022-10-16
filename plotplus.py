@@ -38,7 +38,6 @@ class Plot:
     def __init__(self, figsize=None, dpi=180, aspect=None, inside_axis=False,
             boundary=None):
         """Init the plot.
-
         Parameters
         ---------------
         figsize : tuple, optional
@@ -141,7 +140,6 @@ class Plot:
     def setmap(self, key=None, proj=None, projection=None, resolution='i',
             **kwargs):
         """Set underlying map for the plot.
-
         Parameters
         ----------
         key : string, optional
@@ -161,7 +159,6 @@ class Plot:
             Default scale of features (e.g. coastlines). Should be
             one of (l|i|h), which stands for 110m, 50m and 10m
             respectively. The default is 'i' (50m).
-
         """
         if 'resolution' in kwargs:
             kwargs.pop('resolution')
@@ -185,6 +182,8 @@ class Plot:
             self.map_georange = kwargs.pop('map_georange')
         else:
             self.map_georange = self.georange
+        if 'facecolor' in kwargs:
+            self.facecolor = kwargs.pop('facecolor')
         if isinstance(proj, ccrs.Projection):
             _proj = proj
             self.proj = type(_proj).__name__
@@ -195,6 +194,8 @@ class Plot:
             _proj = getattr(ccrs, self.proj)(**kwargs)
         self.trans = self.proj != 'PlateCarree'
         self.ax = plt.axes(projection=_proj)
+        if self.facecolor is not None:
+            self.ax.patch.set_facecolor(self.facecolor)
         self.scale = _scaleshort[resolution]
         extent = self.map_georange[2:] + self.map_georange[:2]
         self.ax.set_extent(extent, crs=ccrs.PlateCarree())
@@ -213,13 +214,6 @@ class Plot:
             self.ax.set_aspect(self.aspect)
         else:
             self.fig.set_size_inches(width, width * deltalat / deltalon)
-        if self.facecolor is None:
-            self.ax.patch.set_facecolor("#FFFFFF")
-        elif 'facecolor' in kwargs:
-            self.facecolor = kwargs.pop('facecolor')
-            self.ax.patch.set_facecolor(self.facecolor)
-        else:
-            self.ax.patch.set_facecolor(self.facecolor)
         if self.boundary is None:
             self.ax.outline_patch.set_linewidth(0)
         elif self.boundary == 'rect':
@@ -455,8 +449,8 @@ class Plot:
         return ret
 
     def style(self, s):
-        if s not in ('jma', 'bom', 'fnmoc'):
-            print('Unknown style name. Only support jma, bom, and fnmoc style.')
+        if s not in ('jma', 'bom', 'fnmoc', 'blackBGRadar'):
+            print('Unknown style name. Only support jma, bom, fnmoc, and blackBGRadar style.')
             return
         if s == 'jma':
             ocean_color = '#87A9D2'
@@ -476,6 +470,12 @@ class Plot:
             self.linecolor.update(coastline='k', lakes='k', rivers='k', country='k',
                 parameri='k', province='k', city='k')
             self.style_colors = (ocean_color, land_color, 'k')
+        elif s == 'blackBGRadar':
+            ocean_color = '#000000'
+            land_color = '#000000'
+            self.linecolor.update(coastline='w', lakes='k', rivers='w', country='w',
+                parameri='w', province='w', city='w')
+            self.style_colors = (ocean_color, land_color, 'w')
         if self.mapset and self.mapset.ocean:
             self.ax.add_feature(self.mapset.ocean, color=ocean_color)
         else:
@@ -924,7 +924,6 @@ def merge_dict(a, b):
 
 class MapSet:
     """Portable mapset for small area and high resolution data plotting.
-
     The default Cartopy features (e.g. coastlines, borders) are not scalable
     geographically. If we want to plot something in a small georange,
     naturally we need high-res features to avoid coarseness. Also, every time
@@ -932,12 +931,10 @@ class MapSet:
     are in the given georange and can be plotted, which cost noticeable time.
     As a result if we plot many figures on the same small georange, many time
     and computing power are wasted.
-
     To address this problem I create a reusable mapset for Cartopy. It will
     calculate desired geometries upon initiating, which is reusable and fully
     compatible with Cartopy functions. It can also be saved as a file by
     pickle, further reducing overhead time.
-
     Example code:
     ```
     georange = 15, 35, 110, 135
@@ -948,7 +945,6 @@ class MapSet:
     p.usemapset(mapset)
     p.drawcoastlines()
     ```
-
     or, more easily:
     ```
     georange = 15, 35, 110, 135
