@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage as snd
 
-__version__ = '0.4.0'
+__version__ = '0.5.0-dev'
 
 _ShapeFileDir = os.path.join(os.path.split(__file__)[0], 'shapefile')
 _ProvinceDir = os.path.join(_ShapeFileDir, 'CP/ChinaProvince.shp')
