@@ -884,6 +884,10 @@ class Plot:
     def _maxminnote(self, s):
         self.mmnote = s
 
+    def footernote(self, s):
+        self.ax.text(0, -0.03, s, va='top', ha='left', color='red', transform=self.ax.transAxes,
+            fontsize=self.fontsize['footer'], family=self.family)
+
     def _set_note(self, s, **kwargs):
         self.ax.text(1, 1.01, s, ha='right', transform=self.ax.transAxes, **kwargs)
 
