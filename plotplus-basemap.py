@@ -167,7 +167,8 @@ class Plot:
 
     def drawparameri(self, line=None, color=None, lw=0.3, fontsize=None, **kwargs):
         if line is None and not self.trans:
-            lw = 0
+            lw = 0.1
+            kwargs.update(dashes=[0,1])
         if fontsize is None:
             fontsize = self.fontsize['parameri']
         if color is None:
