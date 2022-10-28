@@ -97,7 +97,8 @@ class Plot:
             georange = kwargs.pop('georange')
             kwargs.update(llcrnrlat=georange[0], urcrnrlat=georange[1],
                           llcrnrlon=georange[2], urcrnrlon=georange[3])
-        kwargs.update(ax=self.ax, projection=projection, resolution=resolution)
+        if key is None:
+            kwargs.update(ax=self.ax, projection=projection, resolution=resolution)
         if projection == 'cyl':
             if 'fix_aspect' not in kwargs:
                 kwargs.update(fix_aspect=True)
