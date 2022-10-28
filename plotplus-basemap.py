@@ -72,26 +72,26 @@ class Plot:
 
     def setmap(self, key=None, projection='cyl', resolution='i', **kwargs):
         if key == 'chinaproper':
-            kwargs.update(projection='cyl', resolution='i',
+            kwargs.update(ax=self.ax, projection='cyl', resolution='i',
                           llcrnrlat=20, urcrnrlat=40, llcrnrlon=100, urcrnrlon=130)
         elif key == 'chinamerc':
-            kwargs.update(projection='merc', resolution='i',
+            kwargs.update(ax=self.ax, projection='merc', resolution='i',
                           llcrnrlat=15, urcrnrlat=55, llcrnrlon=70, urcrnrlon=140,
                           lat_0=15, lon_0=95)
         elif key == 'euroasia':
-            kwargs.update(projection='lcc', resolution='l',
+            kwargs.update(ax=self.ax, projection='lcc', resolution='l',
                           llcrnrlat=-5, urcrnrlat=45, llcrnrlon=60, urcrnrlon=200,
                           lat_0=42.5, lon_0=100)
         elif key == 'europe':
-            kwargs.update(projection='lcc', resolution='l',
+            kwargs.update(ax=self.ax, projection='lcc', resolution='l',
                           llcrnrlat=-5, urcrnrlat=45, llcrnrlon=0, urcrnrlon=140,
                           lat_0=42.5, lon_0=40)
         elif key == 'northamerica':
-            kwargs.update(projection='lcc', resolution='l',
+            kwargs.update(ax=self.ax, projection='lcc', resolution='l',
                           llcrnrlat=-5, urcrnrlat=45, llcrnrlon=220, urcrnrlon=359,
                           lat_0=42.5, lon_0=260)
         elif key == 'northpolar':
-            kwargs.update(projection='npaeqd', resolution='l',
+            kwargs.update(ax=self.ax, projection='npaeqd', resolution='l',
                           boundinglat=15, lon_0=105, round=False)
         if 'georange' in kwargs:
             georange = kwargs.pop('georange')
