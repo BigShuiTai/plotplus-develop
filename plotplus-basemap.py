@@ -32,7 +32,7 @@ class Plot:
         self.ax = plt.gca()
         self.fontsize = dict(title=6, timestamp=5, mmnote=5, clabel=5, cbar=5,
                              gridvalue=5, mmfilter=6, parameri=4, legend=6,
-                             marktext=5)
+                             marktext=5, footer=6)
         self.linecolor = dict(coastline='#222222', country='#222222', province='#222222',
                               city='#222222', county='#222222', parameri='k')
         self.mpstep = 10
@@ -147,7 +147,7 @@ class Plot:
             color = self.linecolor['country']
         self.m.drawcountries(linewidth=lw, color=color, ax=self.ax)
 
-    def drawprovinces(self, lw=0.2, color=None):
+    def drawprovince(self, lw=0.2, color=None):
         if color is None:
             color = self.linecolor['province']
         self.m.readshapefile(_ProvinceDirectory, 'Province', linewidth=lw,
@@ -197,6 +197,11 @@ class Plot:
                 self.drawparameri()
             else:
                 print('Illegal draw command: %s' % (cmd))
+
+    def smooth_data(self, data, sigma=5, order=0):
+        import scipy.ndimage as snd
+        smoothed_data = snd.gaussian_filter(data, sigma=sigma, order=order)
+        return smoothed_data
 
     def interpolation(self, data, ip=1):
         if ip <= 1:
@@ -345,11 +350,13 @@ class Plot:
         kwargs.update(color=color, linewidth=lw, density=density)
         ret = self.ax.streamplot(self.x, self.y, u, v, **kwargs)
         return ret
-
-    def barbs(self, u, v, color='k', lw=0.5, length=3.5, num=12, **kwargs):
-        kwargs.update(color=color, linewidth=lw, length=length, regrid_shape=num)
-        sh = self.yy < 0
-        ret = self.ax.barbs(self.xx, self.yy, u, v, flip_barb=sh, **kwargs)
+    
+    def barbs(self, u, v, color='k', lw=0.5, length=4, num=12, **kwargs):
+        kwargs.update(color=color, linewidth=lw, length=length)
+        bs = self.stepcal(num)
+        xbs, ybs, ubs, vbs = self.x[::bs], self.y[::bs], u[::bs,::bs], v[::bs,::bs]
+        sh = np.meshgrid(xbs, ybs)[1] < 0
+        ret = self.ax.barbs(xbs, ybs, ubs, vbs, flip_barb=sh, **kwargs)
         return ret
 
     def quiver(self, u, v, num=40, scale=None, qkey=False, qkeydict=dict(), **kwargs):
@@ -404,8 +411,8 @@ class Plot:
             self.colorbar(ret, unit=gpfdict.pop('unit', None), **cbardict)
         return ret
 
-    def gridvalue(self, data, num=20, fmt='%d', color='b', fontsize=None,
-                  stroke=False, **kwargs):
+    def gridvalue(self, data, num=20, fmt='{:.0f}', color='b', fontsize=None,
+            stroke=False, maskValue=None, zorder=4, **kwargs):
         if fontsize is None:
             fontsize = self.fontsize['gridvalue']
         if stroke:
@@ -419,8 +426,12 @@ class Plot:
         meri, para = len(self.y), len(self.x)
         for i in range(1, meri-1, step):
             for j in range(1, para-1, step):
-                self.ax.text(j*self.res+self.lonmin, i*self.res+self.latmin,
-                             fmt % (data[i][j]), **kwargs)
+                if not isinstance(data[i][j], np.ma.core.MaskedConstant):
+                    if not maskValue is None:
+                        if not fmt.format(data[i][j]) == str(maskValue):
+                            self.ax.text(j*self.res+self.lonmin, i*self.res+self.latmin, fmt.format(data[i][j]), **kwargs)
+                    else:
+                        self.ax.text(j*self.res+self.lonmin, i*self.res+self.latmin, fmt.format(data[i][j]), **kwargs)
 
     def marktext(self, x, y, text='', mark='×', textpos='right', stroke=False, 
                  bbox=dict(), family='plotplus', markfontsize=None, **kwargs):
