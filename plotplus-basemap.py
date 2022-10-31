@@ -99,7 +99,7 @@ class Plot:
                           llcrnrlon=georange[2], urcrnrlon=georange[3])
         if key is None:
             kwargs.update(ax=self.ax, projection=projection, resolution=resolution)
-        if projection == 'cyl':
+        if projection == 'cyl' and key is None:
             if 'fix_aspect' not in kwargs:
                 kwargs.update(fix_aspect=True)
             self.trans = False
@@ -205,7 +205,11 @@ class Plot:
 
     def interpolation(self, data, ip=1):
         if ip <= 1:
-            return self.x, self.y, data
+            if self.trans:
+                nx, ny = self.m(self.xx, self.yy)
+            else:
+                nx, ny = self.x, self.y
+            return nx, ny, data
         else:
             nx = np.arange(self.lonmin, self.lonmax+self.res/ip, self.res/ip)
             ny = np.arange(self.latmin, self.latmax+self.res/ip, self.res/ip)
@@ -429,9 +433,13 @@ class Plot:
                 if not isinstance(data[i][j], np.ma.core.MaskedConstant):
                     if not maskValue is None:
                         if not fmt.format(data[i][j]) == str(maskValue):
-                            self.ax.text(j*self.res+self.lonmin, i*self.res+self.latmin, fmt.format(data[i][j]), **kwargs)
+                            _x = self.xx[i][j]
+                            _y = self.yy[i][j]
+                            self.ax.text(_x, _y, fmt.format(data[i][j]), **kwargs)
                     else:
-                        self.ax.text(j*self.res+self.lonmin, i*self.res+self.latmin, fmt.format(data[i][j]), **kwargs)
+                        _x = self.xx[i][j]
+                        _y = self.yy[i][j]
+                        self.ax.text(_x, _y, fmt.format(data[i][j]), **kwargs)
 
     def marktext(self, x, y, text='', mark='×', textpos='right', stroke=False, 
                  bbox=dict(), family='plotplus', markfontsize=None, **kwargs):
@@ -491,8 +499,10 @@ class Plot:
         ymax, xmax = data.shape
         for y, x in zip(yind, xind):
             d = data[y, x]
+            _x = self.xx[y, x]
+            _y = self.yy[y, x]
             if d < vmax and d > vmin and x not in (0, xmax-1) and y not in (0, ymax-1):
-                textfunc(x*res+self.lonmin, y*res+self.latmin, fmt % d, **kwargs)
+                textfunc(_x, _y, fmt % d, **kwargs)
 
     def _get_stroke_patheffects(self):
         import matplotlib.patheffects as mpatheffects
@@ -594,9 +604,6 @@ class Plot:
 
     def clear(self):
         plt.clf()
-
-    def closeAxis(self):
-        plt.axis('off')
 
 def merge_dict(a, b):
     '''Merge B into A without overwriting A'''
