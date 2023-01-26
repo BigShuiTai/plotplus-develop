@@ -462,6 +462,8 @@ class Plot:
         an_text = self.ax.annotate(text, xy=xy, xycoords=an_mark, xytext=xytext,
               textcoords='offset points', va=va, ha=ha, bbox=bbox,
               fontsize=fontsize, **kwargs)
+        an_mark.set_clip_path(self.ax.patch)
+        an_text.set_clip_path(self.ax.patch)
         return an_text
 
     def maxminfilter(self, data, type='min', fmt='%d', weight='bold', color='b',
