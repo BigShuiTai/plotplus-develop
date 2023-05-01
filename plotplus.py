@@ -215,9 +215,9 @@ class Plot:
         else:
             self.fig.set_size_inches(width, width * deltalat / deltalon)
         if self.boundary is None:
-            self.ax.outline_patch.set_linewidth(0)
+            self.ax.patch.set_linewidth(0)
         elif self.boundary == 'rect':
-            self.ax.outline_patch.set_linewidth(0.5)
+            self.ax.patch.set_linewidth(0.5)
         elif self.boundary == 'round':
             # For north polar stereo projection
             import matplotlib.path as mpath
