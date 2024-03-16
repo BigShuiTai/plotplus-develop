@@ -647,6 +647,36 @@ class Plot:
         plt.sca(self.ax)
         return cb
 
+    def custom_colorbar(self, cmap=None, gpfcmap=None, location=None,
+                        orientation='vertical', ticks=None, unit=None, label=None):
+        from matplotlib.colorbar import ColorbarBase
+        from matplotlib.colors import BoundaryNorm
+        if location is None:
+            location = [1.01, 0.0, 0.02, 1.0]
+        if gpfcmap is not None:
+            cmap_dict = gpf.cmap(gpfcmap)
+            cmap = cmap_dict['cmap']
+            levels = cmap_dict['levels']
+            extend = cmap_dict['extend']
+            if ticks is None:
+                level_step = len(levels) // 40 + 1
+                ticks = levels[::level_step]
+            norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
+        else:
+            extend = None
+            norm = None
+        cax = self.ax.inset_axes(location)
+        cb = ColorbarBase(cax, cmap=cmap, orientation=orientation, ticks=ticks,
+                          extendfrac=0.02, extend=extend, norm=norm)
+        cb.ax.tick_params(labelsize=self.fontsize['cbar'], length=0, pad=1.2)
+        cb.outline.set_linewidth(0.3)
+        if label:
+            cb.set_label(label, fontsize=self.fontsize['cbar'], family=self.family)
+        for l in cb.ax.yaxis.get_ticklabels():
+            l.set_family(self.family)
+        self._colorbar_unit(unit)
+        return cb
+
     def streamplot(self, u, v, color='w', lw=0.3, density=1, **kwargs):
         kwargs.update(color=color, linewidth=lw, density=density, transform=ccrs.PlateCarree())
         ret = self.ax.streamplot(self.xx, self.yy, u, v, **kwargs)
