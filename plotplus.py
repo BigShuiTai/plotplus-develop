@@ -685,17 +685,29 @@ class Plot:
     def barbs(self, u, v, color='k', lw=0.5, length=3.5, num=12, **kwargs):
         kwargs.update(color=color, linewidth=lw, length=length,
             transform=ccrs.PlateCarree(), regrid_shape=num)
-        sh = self.yy < 0
-        ret = self.ax.barbs(self.xx, self.yy, u, v, flip_barb=sh, **kwargs)
-        return ret
+        if self.yy[self.yy<=0].size > self.yy[self.yy>=0].size:
+            nh = self.yy > 0
+            sh = self.yy <= 0
+        else:
+            nh = self.yy >= 0
+            sh = self.yy < 0
+        if np.any(nh):
+            ret = self.ax.barbs(self.xx[nh], self.yy[nh], u[nh], v[nh], **kwargs)
+        else:
+            ret = None
+        if np.any(sh):
+            retsh = self.ax.barbs(self.xx[sh], self.yy[sh], u[sh], v[sh], flip_barb=True, **kwargs)
+        else:
+            retsh = None
+        return ret, retsh
 
-    def quiver(self, u, v, num=40, scale=500, qkey=False, qkeydict=None, **kwargs):
+    def quiver(self, u, v, c=None, num=40, scale=500, qkey=False, qkeydict=None, width=0.0015, **kwargs):
         qkeydict = qkeydict or {}
-        kwargs.update(width=0.0015, headwidth=3, scale=scale, transform=ccrs.PlateCarree(),
-            regrid_shape=num)
-        vs = self.stepcal(num)
-        q = self.ax.quiver(self.xx[::vs, ::vs], self.yy[::vs, ::vs], u[::vs, ::vs],
-            v[::vs, ::vs], **kwargs)
+        kwargs.update(width=width, headwidth=3, scale=scale, transform=ccrs.PlateCarree(), regrid_shape=num)
+        if c is not None:
+            q = self.ax.quiver(self.xx, self.yy, u, v, c, **kwargs)
+        else:
+            q = self.ax.quiver(self.xx, self.yy, u, v, **kwargs)
         if qkey:
             if 'x' in qkeydict and 'y' in qkeydict:
                 x = qkeydict.pop('x')
