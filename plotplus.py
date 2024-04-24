@@ -751,6 +751,7 @@ class Plot:
         if stroke:
             kwargs.update(path_effects=self._get_stroke_patheffects())
         step = self.stepcal(num)
+        if step == 0: step = 1
         kwargs.update(color=color, fontsize=fontsize, ha='center', va='center',
                       family=self.family, transform=ccrs.PlateCarree(),
                       zorder=zorder)
