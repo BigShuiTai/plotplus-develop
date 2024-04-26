@@ -788,7 +788,7 @@ class Plot:
             xx, yy = np.meshgrid(x, y)
             points = ccrs.Geodetic().transform_points(self.ax.projection, xx, yy)
             if self.xx[self.xx < 0].size == 0:
-                points[points < 0] += 360
+                points[:,:,0][points[:,:,0] < 0] += 360
             points_round = np.round(points / self.res) * self.res
             lon_points, lat_points = points_round[:,:,0], points_round[:,:,1]
             for i in range(lon_points.shape[0]):
