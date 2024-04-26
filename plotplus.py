@@ -124,12 +124,15 @@ class Plot:
     def setdpi(self, d):
         self.dpi = d
 
-    def setxy(self, georange, res):
-        self.latmin, self.latmax, self.lonmin, self.lonmax = tuple(georange)
-        self.x = np.arange(self.lonmin, self.lonmax+res, res)
-        self.y = np.arange(self.latmin, self.latmax+res, res)
-        self.xx, self.yy = np.meshgrid(self.x, self.y)
+    def setxy(self, lons, lats, georange, res):
         self.res = res
+        self.xx, self.yy = lons, lats
+        self.x, self.y = self.xx[0, :], self.yy[:, 0]
+        self.latmin, self.latmax, self.lonmin, self.lonmax = tuple(georange)
+        self._latmin, self._latmax, self._lonmin, self._lonmax = (
+            np.nanmin(self.y), np.nanmax(self.y),
+            np.nanmin(self.x), np.nanmax(self.x)
+        )
         self.uneven_xy = False
 
     def _setxy(self, x, y):
@@ -415,8 +418,8 @@ class Plot:
         elif ip <= 1:
             return self.xx, self.yy, data
         else:
-            nx = np.arange(self.lonmin, self.lonmax+self.res/ip, self.res/ip)
-            ny = np.arange(self.latmin, self.latmax+self.res/ip, self.res/ip)
+            nx = np.arange(self._lonmin, self._lonmax+self.res/ip, self.res/ip)
+            ny = np.arange(self._latmin, self._latmax+self.res/ip, self.res/ip)
             newx, newy = np.meshgrid(nx, ny)
             xcoords = (len(self.x)-1)*(newx-self.x[0])/(self.x[-1]-self.x[0])
             ycoords = (len(self.y)-1)*(newy-self.y[0])/(self.y[-1]-self.y[0])
@@ -437,8 +440,8 @@ class Plot:
         if self.uneven_xy:
             # Meaningless for uneven x/y.
             return 1
-        totalpt = (self.lonmax - self.lonmin) / self.res * ip
-        return int(totalpt / num)
+        totalpt = (self._lonmax - self._lonmin) / self.res * ip
+        return int(totalpt / num) if totalpt >= num else 1
 
     def legend(self, lw=0., **kwargs):
         rc = dict(loc='upper right', framealpha=0.)
@@ -745,7 +748,7 @@ class Plot:
         return [mpatheffects.Stroke(linewidth=1, foreground='w'), mpatheffects.Normal()]
 
     def gridvalue(self, data, num=20, fmt='{:.0f}', color='b', fontsize=None,
-            stroke=False, maskValue=None, zorder=4, **kwargs):
+            stroke=False, maskValue=None, onlyLand=False, zorder=4, **kwargs):
         if fontsize is None:
             fontsize = self.fontsize['gridvalue']
         if stroke:
@@ -755,15 +758,53 @@ class Plot:
         kwargs.update(color=color, fontsize=fontsize, ha='center', va='center',
                       family=self.family, transform=ccrs.PlateCarree(),
                       zorder=zorder)
-        meri, para = len(self.y), len(self.x)
-        for i in range(1, meri-1, step):
-            for j in range(1, para-1, step):
-                if not isinstance(data[i][j], np.ma.core.MaskedConstant):
+        if onlyLand:
+            from mpl_toolkits.basemap import Basemap
+            m = Basemap(ax=self.ax, projection='cyl', resolution='c',
+                        llcrnrlat=self.latmin, urcrnrlat=self.latmax,
+                        llcrnrlon=self.lonmin, urcrnrlon=self.lonmax)
+        if not self.no_parameri:
+            meri, para = len(self.y), len(self.x)
+            for i in range(1, meri-1, step):
+                for j in range(1, para-1, step):
+                    if not isinstance(data[i][j], np.ma.core.MaskedConstant):
+                        lon, lat = _x = self.xx[i][j], self.yy[i][j]
+                        if onlyLand and not m.is_land(lon, lat):
+                            continue
+                        if not maskValue is None:
+                            if not fmt.format(data[i][j]) == str(maskValue):
+                                self.ax.text(lon, lat, fmt.format(data[i][j]), **kwargs)
+                        else:
+                            self.ax.text(lon, lat, fmt.format(data[i][j]), **kwargs)
+        else:
+            x1, x2, y1, y2 = self.ax.get_extent()
+            deltax, deltay = x2 - x1, y2 - y1
+            x1 += 0.02 * deltax
+            x2 -= 0.02 * deltax
+            y1 += 0.02 * deltay
+            y2 -= 0.02 * deltay
+            x = np.linspace(x1, x2, num)
+            y = np.linspace(y1, y2, num)
+            xx, yy = np.meshgrid(x, y)
+            points = ccrs.Geodetic().transform_points(self.ax.projection, xx, yy)
+            if self.xx[self.xx < 0].size == 0:
+                points[points < 0] += 360
+            points_round = np.round(points / self.res) * self.res
+            lon_points, lat_points = points_round[:,:,0], points_round[:,:,1]
+            for i in range(lon_points.shape[0]):
+                for j in range(lat_points.shape[1]):
+                    lon, lat = lon_points[i, j], lat_points[i, j]
+                    if onlyLand and not m.is_land(lon, lat):
+                        continue
+                    # calculate nearest index
+                    distances = np.sqrt((self.xx - lon) ** 2 + (self.yy - lat) ** 2)
+                    nearest_idx = np.unravel_index(np.argmin(distances), distances.shape)
+                    value = data[nearest_idx]
                     if not maskValue is None:
-                        if not fmt.format(data[i][j]) == str(maskValue):
-                            self.ax.text(j*self.res+self.lonmin, i*self.res+self.latmin, fmt.format(data[i][j]), **kwargs)
+                        if not fmt.format(value) == str(maskValue):
+                            self.ax.text(lon, lat, fmt.format(value), **kwargs)
                     else:
-                        self.ax.text(j*self.res+self.lonmin, i*self.res+self.latmin, fmt.format(data[i][j]), **kwargs)
+                        self.ax.text(lon, lat, fmt.format(value), **kwargs)
 
     def marktext(self, x, y, text='', mark='×', textpos='right', stroke=False,
             bbox=None, family='plotplus', markfontsize=None, **kwargs):
@@ -811,14 +852,10 @@ class Plot:
                 markfontsize=8, family=None, textpos='bottom')
             kwargs = merge_dict(marktextdict, argsdict)
             textfunc = self.marktext
-        if 'res' in kwargs:
-            res = kwargs.pop('res')
-        elif 'ip' in kwargs:
+        xx, yy = self.xx, self.yy
+        if 'ip' in kwargs:
             ip = kwargs.pop('ip')
-            x, y, data = self.interpolation(data, ip)
-            res = self.res / ip
-        else:
-            res = self.res
+            xx, yy, data = self.interpolation(data, ip)
         if type == 'min':
             ftr = snd.minimum_filter
         elif type == 'max':
@@ -830,8 +867,10 @@ class Plot:
         ymax, xmax = data.shape
         for y, x in zip(yind, xind):
             d = data[y, x]
+            _x = xx[y, x]
+            _y = yy[y, x]
             if d < vmax and d > vmin and x not in (0, xmax-1) and y not in (0, ymax-1):
-                textfunc(x*res+self.lonmin, y*res+self.latmin, fmt.format(d), **kwargs)
+                textfunc(_x, _y, fmt.format(d), **kwargs)
 
     def boxtext(self, s, textpos='upper left', bbox={}, color='k', fontsize=None, **kwargs):
         if fontsize is None:
@@ -896,7 +935,7 @@ class Plot:
         self.ax.text(0, 1.01, s, transform=self.ax.transAxes,
             fontsize=self.fontsize['timestamp'], family=self.family)
 
-    def _timestamp_(self, s, **kwargs):
+    def _timestamp_custom(self, s, **kwargs):
         self.ax.text(0, 1.01, s, transform=self.ax.transAxes, **kwargs)
 
     def _colorbar_unit(self, s):
