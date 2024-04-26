@@ -1,30 +1,38 @@
+import gc
 import functools
-import plotplus.gpf as gpf
 import os
 import pickle
 import warnings
 from datetime import datetime, timedelta
 
+import plotplus.gpf as gpf
+
+import matplotlib
+matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt
+from matplotlib import font_manager
+
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.shapereader as ciosr
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
+
 import numpy as np
 import scipy.ndimage as snd
 
 __version__ = '0.5.0-dev'
 
 _ShapeFileDir = os.path.join(os.path.split(__file__)[0], 'shapefile')
-_ProvinceDir = os.path.join(_ShapeFileDir, 'CP/ChinaProvince.shp')
+_CountryDir = os.path.join(_ShapeFileDir, '国家/国家.shp')
+# _ProvinceDir = os.path.join(_ShapeFileDir, 'CP/ChinaProvince.shp')
+_ProvinceDir = os.path.join(_ShapeFileDir, '南海诸岛/nanhai.shp')
 _CityDir = os.path.join(_ShapeFileDir, 'CHN/CHN_adm2.shp')
 _CityTWDir = os.path.join(_ShapeFileDir, 'TWN/TWN_adm2.shp')
 _CountyDir = os.path.join(_ShapeFileDir, 'CHN/CHN_adm3.shp')
 
 _gray = '#222222'
 _projshort = dict(P='PlateCarree', L='LambertConformal', ML='Miller', M='Mercator',
-    N='NorthPolarStereo', G='Geostationary')
+    N='NorthPolarStereo', S='SouthPolarStereo', G='Geostationary')
 _scaleshort = dict(l='110m', i='50m', h='10m')
 
 
@@ -87,9 +95,10 @@ class Plot:
         self.aspect = aspect
         self.boundary = boundary
         self.inside_axis = inside_axis
+        self.no_parameri = False
         self.fontsize = dict(title=6.5, timestamp=5, mmnote=5, clabel=5, cbar=5,
             gridvalue=5, mmfilter=6, parameri=4, legend=6, marktext=6,
-            boxtext=6)
+            boxtext=6, footer=6)
         self.linecolor = dict(coastline=_gray, lakes=_gray, rivers=_gray, country=_gray, province=_gray,
             city=_gray, county=_gray, parameri='k')
         self.linewidth = dict(coastline=0.3, lakes=0.2, rivers=0.2, country=0.3, province=0.3, city=0.1,
@@ -99,7 +108,6 @@ class Plot:
         self.family = f
 
     def setfont(self, font_file, size):
-        from matplotlib import font_manager
         fontProperties = font_manager.FontProperties(fname=font_file, size=size)
         return fontProperties
 
@@ -140,7 +148,7 @@ class Plot:
         self.yy = y
         self.uneven_xy = True
 
-    def setmap(self, key=None, proj=None, projection=None, resolution='i',
+    def setmap(self, key=None, proj='ML', projection=None, resolution='i',
             **kwargs):
         """Set underlying map for the plot.
         Parameters
@@ -170,21 +178,14 @@ class Plot:
             proj, other_kwargs = self._from_map_key(key)
             kwargs.update(other_kwargs)
         if proj is None and projection is not None:
-            _proj_dict = {'cyl':'P', 'merc':'M', 'lcc':'L', 'geos':'G', 'npaeqd':'N'}
+            _proj_dict = {'cyl':'P', 'merc':'M', 'lcc':'L', 'geos':'G', 'npaeqd':'N', 'spaeqd':'S'}
             proj = _proj_dict.get(projection, None)
             if proj is None:
                 raise PlotError('Only cyl/merc/lcc/geos/npaeqd are allowed in `projection` '
                                 'param. If you want to use cartopy-style projection names, '
                                 'please use `proj` param instead.')
-        if 'georange' in kwargs:
-            georange = kwargs.pop('georange')
-        else:
-            georange = (-90, 90, -180, 180)
-        self.georange = georange
-        if 'map_georange' in kwargs:
-            self.map_georange = kwargs.pop('map_georange')
-        else:
-            self.map_georange = self.georange
+        self.georange = kwargs.pop('georange') if 'georange' in kwargs else (-90, 90, -180, 180)
+        self.map_georange = kwargs.pop('map_georange') if 'map_georange' in kwargs else self.georange
         if 'facecolor' in kwargs:
             self.facecolor = kwargs.pop('facecolor')
         if isinstance(proj, ccrs.Projection):
@@ -192,8 +193,9 @@ class Plot:
             self.proj = type(_proj).__name__
         else:
             self.proj = _projshort.get(proj.upper(), proj)
-            central_longitude = (georange[2] + georange[3]) / 2
-            kwargs.update(central_longitude=central_longitude)
+            if not 'central_longitude' in kwargs:
+                central_longitude = (self.georange[2] + self.georange[3]) / 2
+                kwargs.update(central_longitude=central_longitude)
             _proj = getattr(ccrs, self.proj)(**kwargs)
         self.trans = self.proj != 'PlateCarree'
         self.ax = plt.axes(projection=_proj)
@@ -216,7 +218,8 @@ class Plot:
         elif self.aspect is not None:
             self.ax.set_aspect(self.aspect)
         else:
-            self.fig.set_size_inches(width, width * deltalat / deltalon)
+            # self.fig.set_size_inches(width, width * deltalat / deltalon)
+            pass
         if self.boundary is None:
             self.ax.patch.set_linewidth(0)
         elif self.boundary == 'rect':
@@ -233,12 +236,10 @@ class Plot:
             raise PlotError('Unknown boundary type.')
 
     def _from_map_key(self, key):
+        self.no_parameri = True
         if key == 'chinaproper':
             proj = 'P'
             kwargs = {'georange':(20,40,100,130)}
-        elif key == 'chinamiller':
-            proj = 'ML'
-            kwargs = {'georange':(15,55,70,136)}
         elif key == 'chinamerc':
             proj = 'M'
             kwargs = {'georange':(15,50,72.5,135)}
@@ -258,9 +259,14 @@ class Plot:
             proj = 'L'
             kwargs = {'georange':(5,75,-145,-55), 'central_longitude':-100,
                 'central_latitude':40, 'standard_parallels':(40,40)}
-        elif key == 'northpole':
+        elif key == 'northpolar':
             proj = 'N'
             kwargs = {'georange':(15,90,-180,180), 'central_longitude':105}
+        elif key == 'southpolar':
+            proj = 'S'
+            kwargs = {'georange':(-90,-15,-180,180), 'central_longitude':105}
+        else:
+            self.no_parameri = False
         return proj, kwargs
 
     def usemap(self, session):
@@ -324,9 +330,12 @@ class Plot:
             self.usefeature(self.mapset.country, edgecolor=color, facecolor='none',
                 linewidth=lw)
         else:
-            self.ax.add_feature(self.getfeature('cultural',
-                'admin_0_boundary_lines_land', res, facecolor='none',
-                edgecolor=color), linewidth=lw)
+            self.ax.add_feature(cfeature.ShapelyFeature(
+                ciosr.Reader(_CountryDir).geometries(), ccrs.PlateCarree(),
+                facecolor='none', edgecolor=color), linewidth=lw)
+            # self.ax.add_feature(self.getfeature('cultural',
+            #     'admin_0_boundary_lines_land', res, facecolor='none',
+            #     edgecolor=color), linewidth=lw)
 
     @functools.lru_cache(maxsize=32)
     def getfeature(self, *args, **kwargs):
@@ -358,6 +367,8 @@ class Plot:
             ccrs.PlateCarree(), facecolor='none', edgecolor=color), linewidth=lw)
 
     def drawparameri(self, lw=None, color=None, fontsize=None, **kwargs):
+        if self.no_parameri:
+            return
         import cartopy.mpl.gridliner as cmgl
         import matplotlib.ticker as mticker
         no_dashes = lw is None and (self.proj == 'PlateCarree' or \
@@ -410,6 +421,10 @@ class Plot:
             else:
                 print('Illegal draw command: %s' % (cmd))
 
+    def smooth_data(self, data, sigma=5, order=0):
+        smoothed_data = snd.gaussian_filter(data, sigma=sigma, order=order)
+        return smoothed_data
+
     def interpolation(self, data, ip=1):
         if self.uneven_xy:
             if ip > 1:
@@ -459,7 +474,7 @@ class Plot:
             ocean_color = '#87A9D2'
             land_color = '#AAAAAA'
             self.linecolor.update(coastline='#666666', lakes='#666666', rivers='#666666', country='#666666',
-                parameri='#666666',province='#888888', city='#888888')
+                parameri='#666666', province='#888888', city='#888888')
             self.style_colors = (ocean_color, land_color, '#666666', '#888888')
         elif s == 'bom':
             ocean_color = '#E6E6FF'
@@ -494,11 +509,13 @@ class Plot:
         else:
             self.ax.add_feature(cfeature.LAKES.with_scale(self.scale),
                 color=ocean_color)
+        """
         if self.mapset and self.mapset.rivers:
             self.ax.add_feature(self.mapset.rivers, color=ocean_color)
         else:
             self.ax.add_feature(cfeature.RIVERS.with_scale(self.scale),
                 color=ocean_color)
+        """
 
     def plot(self, *args, **kwargs):
         kwargs.update(transform=ccrs.PlateCarree())
@@ -699,7 +716,8 @@ class Plot:
         else:
             ret = None
         if np.any(sh):
-            retsh = self.ax.barbs(self.xx[sh], self.yy[sh], u[sh], v[sh], flip_barb=True, **kwargs)
+            retsh = self.ax.barbs(self.xx[sh], self.yy[sh], u[sh], v[sh],
+                flip_barb=True, **kwargs)
         else:
             retsh = None
         return ret, retsh
@@ -731,8 +749,8 @@ class Plot:
             levels = gpfdict.pop('levels')
             norm = mclr.BoundaryNorm(levels, ncolors=cmap.N, clip=True)
             kwargs.update(cmap=cmap, norm=norm)
-        x, y, data = self.interpolation(data, ip)
-        ret = self.ax.pcolormesh(x, y, data, **kwargs)
+        xx, yy, data = self.interpolation(data, ip)
+        ret = self.ax.pcolormesh(xx, yy, data, transform=ccrs.PlateCarree(), **kwargs)
         if cbar:
             if 'ticks' not in cbardict:
                 step = len(levels) // 40 + 1
@@ -767,15 +785,16 @@ class Plot:
             meri, para = len(self.y), len(self.x)
             for i in range(1, meri-1, step):
                 for j in range(1, para-1, step):
-                    if not isinstance(data[i][j], np.ma.core.MaskedConstant):
-                        lon, lat = _x = self.xx[i][j], self.yy[i][j]
-                        if onlyLand and not m.is_land(lon, lat):
-                            continue
-                        if not maskValue is None:
-                            if not fmt.format(data[i][j]) == str(maskValue):
-                                self.ax.text(lon, lat, fmt.format(data[i][j]), **kwargs)
-                        else:
+                    lon, lat = _x = self.xx[i][j], self.yy[i][j]
+                    if onlyLand and not m.is_land(lon, lat):
+                        continue
+                    if isinstance(data[i][j], np.ma.core.MaskedConstant):
+                        continue
+                    if not maskValue is None:
+                        if not fmt.format(data[i][j]) == str(maskValue):
                             self.ax.text(lon, lat, fmt.format(data[i][j]), **kwargs)
+                    else:
+                        self.ax.text(lon, lat, fmt.format(data[i][j]), **kwargs)
         else:
             x1, x2, y1, y2 = self.ax.get_extent()
             deltax, deltay = x2 - x1, y2 - y1
@@ -800,6 +819,8 @@ class Plot:
                     distances = np.sqrt((self.xx - lon) ** 2 + (self.yy - lat) ** 2)
                     nearest_idx = np.unravel_index(np.argmin(distances), distances.shape)
                     value = data[nearest_idx]
+                    if isinstance(value, np.ma.core.MaskedConstant):
+                        continue
                     if not maskValue is None:
                         if not fmt.format(value) == str(maskValue):
                             self.ax.text(lon, lat, fmt.format(value), **kwargs)
@@ -894,11 +915,11 @@ class Plot:
         return t
 
     def title(self, s):
-        self.ax.text(0, 1.038, s, transform=self.ax.transAxes, fontsize=self.fontsize['title'],
+        self.ax.text(0, 1.039, s, transform=self.ax.transAxes, fontsize=self.fontsize['title'],
             family=self.family)
 
     def set_title(self, s, **kwargs):
-        self.ax.text(0, 1.038, s, transform=self.ax.transAxes, **kwargs)
+        self.ax.text(0, 1.039, s, transform=self.ax.transAxes, **kwargs)
 
     def timestamp(self, basetime, fcsthour, duration=0, nearest=None):
         stdfmt = '%Y/%m/%d %a %HZ'
@@ -967,7 +988,8 @@ class Plot:
         self.mmnote = s
 
     def footernote(self, s):
-        self.ax.text(0, -0.03, s, va='top', ha='left', color='red', transform=self.ax.transAxes,
+        y_footer = -0.02 if self.no_parameri else -0.036
+        self.ax.text(0, y_footer, s, va='top', ha='left', color='red', transform=self.ax.transAxes,
             fontsize=self.fontsize['footer'], family=self.family)
 
     def _set_note(self, s, **kwargs):
@@ -993,8 +1015,14 @@ class Plot:
             self.fig.savefig(path, dpi=self.dpi, bbox_inches='tight', edgecolor='none',
                 pad_inches=0.04, **kwargs)
 
-    def clear(self):
-        plt.clf()
+    def close(self):
+        self.ax.clear()
+        self.fig.clear()
+        plt.close(self.fig)
+        plt.close("all")
+        # 显式释放
+        del self.ax, self.fig
+        gc.collect()
     
     def closeAxis(self):
         plt.axis('off')
