@@ -252,9 +252,8 @@ class Plot:
             kwargs = {'georange':(5,75,55,145), 'central_longitude':100,
                 'central_latitude':40, 'standard_parallels':(40,40)}
         elif key == 'europe':
-            proj = 'L'
-            kwargs = {'georange':(5,75,-25,65), 'central_longitude':20,
-                'central_latitude':40, 'standard_parallels':(40,40)}
+            proj = 'ML'
+            kwargs = {'georange':(30,70,-25,45), 'central_longitude':0}
         elif key == 'northamerica':
             proj = 'L'
             kwargs = {'georange':(5,75,-145,-55), 'central_longitude':-100,
@@ -788,7 +787,7 @@ class Plot:
                     lon, lat = _x = self.xx[i][j], self.yy[i][j]
                     if onlyLand and not m.is_land(lon, lat):
                         continue
-                    if isinstance(data[i][j], np.ma.core.MaskedConstant):
+                    if isinstance(data[i][j], np.ma.core.MaskedConstant) or np.isnan(data[i][j]):
                         continue
                     if not maskValue is None:
                         if not fmt.format(data[i][j]) == str(maskValue):
@@ -819,7 +818,7 @@ class Plot:
                     distances = np.sqrt((self.xx - lon) ** 2 + (self.yy - lat) ** 2)
                     nearest_idx = np.unravel_index(np.argmin(distances), distances.shape)
                     value = data[nearest_idx]
-                    if isinstance(value, np.ma.core.MaskedConstant):
+                    if isinstance(value, np.ma.core.MaskedConstant) or np.isnan(value):
                         continue
                     if not maskValue is None:
                         if not fmt.format(value) == str(maskValue):
@@ -891,6 +890,8 @@ class Plot:
             _x = xx[y, x]
             _y = yy[y, x]
             if d < vmax and d > vmin and x not in (0, xmax-1) and y not in (0, ymax-1):
+                if isinstance(d, np.ma.core.MaskedConstant) or np.isnan(d):
+                    continue
                 textfunc(_x, _y, fmt.format(d), **kwargs)
 
     def boxtext(self, s, textpos='upper left', bbox={}, color='k', fontsize=None, **kwargs):
