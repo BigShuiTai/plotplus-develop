@@ -254,6 +254,10 @@ class Plot:
         elif key == 'europe':
             proj = 'ML'
             kwargs = {'georange':(30,70,-25,45), 'central_longitude':0}
+        elif key == 'northpac':
+            proj = 'L'
+            kwargs = {'georange':(-5,70,120,250), 'central_longitude':185,
+                'central_latitude':42.5, 'standard_parallels':(0,40)}
         elif key == 'northamerica':
             proj = 'L'
             kwargs = {'georange':(5,75,-145,-55), 'central_longitude':-100,
@@ -856,7 +860,7 @@ class Plot:
         return an_mark, an_text
 
     def maxminfilter(self, data, type='min', fmt='{:.0f}', weight='bold', color='b',
-            fontsize=None, window=15, vmin=-1e7, vmax=1e7, stroke=False, marktext=False,
+            fontsize=None, window=25, vmin=-1e7, vmax=1e7, stroke=False, marktext=False,
             marktextdict=None, zorder=4, **kwargs):
         '''Use res keyword or ip keyword to interpolate'''
         marktextdict = marktextdict or {}
@@ -882,7 +886,7 @@ class Plot:
             ftr = snd.maximum_filter
         else:
             raise PlotError('Unsupported filter type!')
-        dataftr = ftr(data, window, mode='reflect')
+        dataftr = ftr(data, window, mode='nearest')
         yind, xind = np.where(data == dataftr)
         ymax, xmax = data.shape
         for y, x in zip(yind, xind):
