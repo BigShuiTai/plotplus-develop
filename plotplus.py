@@ -24,13 +24,18 @@ __version__ = '0.5.0-dev'
 
 _ShapeFileDir = os.path.join(os.path.split(__file__)[0], 'shapefile')
 _CountryDir = os.path.join(_ShapeFileDir, '国家/国家.shp')
-# _ProvinceDir = os.path.join(_ShapeFileDir, 'CP/ChinaProvince.shp')
-_ProvinceDir = os.path.join(_ShapeFileDir, '南海诸岛/nanhai.shp')
-_CityDir = os.path.join(_ShapeFileDir, 'CHN/CHN_adm2.shp')
-_CityTWDir = os.path.join(_ShapeFileDir, 'TWN/TWN_adm2.shp')
-_CountyDir = os.path.join(_ShapeFileDir, 'CHN/CHN_adm3.shp')
 
-_gray = '#222222'
+# _CN_ProvinceDir = os.path.join(_ShapeFileDir, 'CP/ChinaProvince.shp')
+_CN_ProvinceDir = os.path.join(_ShapeFileDir, '南海诸岛/nanhai.shp')
+_CN_CityDir = os.path.join(_ShapeFileDir, 'CHN/CHN_adm2.shp')
+_CN_CityTWDir = os.path.join(_ShapeFileDir, 'TWN/TWN_adm2.shp')
+_CN_CountyDir = os.path.join(_ShapeFileDir, 'CHN/CHN_adm3.shp')
+
+_US_ProvinceDir = os.path.join(_ShapeFileDir, 'USA/gadm41_USA_1.shp')
+_US_CityDir = os.path.join(_ShapeFileDir, 'USA/gadm41_USA_2.shp')
+
+_black = '#222222'
+_gray = '#444444'
 _projshort = dict(P='PlateCarree', L='LambertConformal', ML='Miller', M='Mercator',
     N='NorthPolarStereo', S='SouthPolarStereo', G='Geostationary')
 _scaleshort = dict(l='110m', i='50m', h='10m')
@@ -99,7 +104,7 @@ class Plot:
         self.fontsize = dict(title=6.5, timestamp=5, mmnote=5, clabel=5, cbar=5,
             gridvalue=5, mmfilter=6, parameri=4, legend=6, marktext=6,
             boxtext=6, footer=6)
-        self.linecolor = dict(coastline=_gray, lakes=_gray, rivers=_gray, country=_gray, province=_gray,
+        self.linecolor = dict(coastline=_black, lakes=_black, rivers=_black, country=_black, province=_black,
             city=_gray, county=_gray, parameri='k')
         self.linewidth = dict(coastline=0.3, lakes=0.2, rivers=0.2, country=0.3, province=0.3, city=0.1,
             county=0.1, parameri=0.3)
@@ -336,9 +341,6 @@ class Plot:
             self.ax.add_feature(cfeature.ShapelyFeature(
                 ciosr.Reader(_CountryDir).geometries(), ccrs.PlateCarree(),
                 facecolor='none', edgecolor=color), linewidth=lw)
-            # self.ax.add_feature(self.getfeature('cultural',
-            #     'admin_0_boundary_lines_land', res, facecolor='none',
-            #     edgecolor=color), linewidth=lw)
 
     @functools.lru_cache(maxsize=32)
     def getfeature(self, *args, **kwargs):
@@ -352,21 +354,30 @@ class Plot:
                 linewidth=lw)
         else:
             self.ax.add_feature(cfeature.ShapelyFeature(
-                ciosr.Reader(_ProvinceDir).geometries(), ccrs.PlateCarree(),
+                ciosr.Reader(_CN_ProvinceDir).geometries(), ccrs.PlateCarree(),
                 facecolor='none', edgecolor=color), linewidth=lw)
+            self.ax.add_feature(cfeature.ShapelyFeature(
+                ciosr.Reader(_US_ProvinceDir).geometries(), ccrs.PlateCarree(),
+                facecolor='none', edgecolor=color), linewidth=lw)
+        if self.stepcal(num=20) < 4:
+            self.drawcity()
+        if self.stepcal(num=20) == 1:
+            self.drawcounty()
 
     def drawcity(self, lw=None, color=None):
         lw = self.linewidth['city'] if lw is None else lw
         color = self.linecolor['city'] if color is None else color
-        self.ax.add_feature(cfeature.ShapelyFeature(ciosr.Reader(_CityDir).geometries(),
+        self.ax.add_feature(cfeature.ShapelyFeature(ciosr.Reader(_CN_CityDir).geometries(),
             ccrs.PlateCarree(), facecolor='none', edgecolor=color), linewidth=lw)
-        self.ax.add_feature(cfeature.ShapelyFeature(ciosr.Reader(_CityTWDir).geometries(),
+        self.ax.add_feature(cfeature.ShapelyFeature(ciosr.Reader(_CN_CityTWDir).geometries(),
+            ccrs.PlateCarree(), facecolor='none', edgecolor=color), linewidth=lw)
+        self.ax.add_feature(cfeature.ShapelyFeature(ciosr.Reader(_US_CityDir).geometries(),
             ccrs.PlateCarree(), facecolor='none', edgecolor=color), linewidth=lw)
 
     def drawcounty(self, lw=None, color=None):
         lw = self.linewidth['county'] if lw is None else lw
         color = self.linecolor['county'] if color is None else color
-        self.ax.add_feature(cfeature.ShapelyFeature(ciosr.Reader(_CountyDir).geometries(),
+        self.ax.add_feature(cfeature.ShapelyFeature(ciosr.Reader(_CN_CountyDir).geometries(),
             ccrs.PlateCarree(), facecolor='none', edgecolor=color), linewidth=lw)
 
     def drawparameri(self, lw=None, color=None, fontsize=None, **kwargs):
@@ -402,6 +413,17 @@ class Plot:
         else:
             gl.xpadding = 3
             gl.ypadding = 2
+        # set extent note manually
+        lon_ticks = np.arange(-180, 181, self.mpstep)
+        lat_ticks = np.arange(-90, 91, self.mpstep)
+        if 180 <= self.lonmin < self.lonmax or self.lonmin <= 180 <= self.lonmax:
+            lon_ticks[lon_ticks < 0] += 360
+        xlabels = lon_ticks[(lon_ticks>=self.lonmin) & (lon_ticks<=self.lonmax)]
+        ylabels = lat_ticks[(lat_ticks>=self.latmin) & (lat_ticks<=self.latmax)]
+        if len(xlabels) == 0 or len(ylabels) == 0:
+            yloc = -0.02 if len(xlabels) == 0 else -0.06
+            self.ax.text(1, yloc, f"Area Extent: {self.georange}", va='top', ha='right', color='red', transform=self.ax.transAxes,
+                        fontsize=self.fontsize['footer'], family=self.family)
 
     def draw(self, cmd):
         cmd = cmd.lower()
